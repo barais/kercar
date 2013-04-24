@@ -1,0 +1,410 @@
+//Boussole
+
+#include <Wire.h> 
+
+int compassAddress = 0x42 >> 1; // From datasheet compass address is 0x42
+// shift the address 1 bit right, the Wire library only needs the 7
+// most significant bits for the address
+int reading = 0; 
+
+void setup() 
+{ 
+  Wire.begin();       // join i2c bus (address optional for master) 
+  Serial.begin(9600); // start serial communication at 9600bps 
+  pinMode(WLED, OUTPUT);
+  digitalWrite(WLED, HIGH);
+} 
+
+void loop() 
+{ 
+  // step 1: instruct sensor to read echoes 
+  Wire.beginTransmission(compassAddress);  // transmit to device
+  // the address specified in the datasheet is 66 (0x42) 
+  // but i2c adressing uses the high 7 bits so it's 33 
+  Wire.write('A');        // command sensor to measure angle  
+  Wire.endTransmission(); // stop transmitting 
+
+  // step 2: wait for readings to happen 
+  delay(10); // datasheet suggests at least 6000 microseconds 
+
+  // step 3: request reading from sensor 
+  Wire.requestFrom(compassAddress, 2); // request 2 bytes from slave device #33 
+
+  // step 4: receive reading from sensor 
+  if (2 <= Wire.available()) // if two bytes were received 
+  { 
+    reading = Wire.read();  // receive high byte (overwrites previous reading) 
+    reading = reading << 8; // shift high byte to be high 8 bits 
+    reading += Wire.read(); // receive low byte as lower 8 bits 
+    reading /= 10;
+    Serial.println(reading); // print the reading
+  } 
+
+  delay(500); // wait for half a second
+}
+
+
+////////////////////////////////////////////////////////////
+
+
+//Bluetooth
+/*
+BluetoothBee Demo Code - Delay Based Implementaion
+2011 Copyright (c) Seeed Technology Inc.  All right reserved.
+ 
+Author: Visweswara R
+ 
+This demo code is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+ 
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+ 
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ 
+For more details about the product please check http://www.seeedstudio.com/depot/
+ 
+*/
+ 
+/* Upload this sketch into Seeeduino and press reset*/
+ 
+#include <SoftwareSerial.h>   //Software Serial Port
+#define RxD 11
+#define TxD 12
+ 
+//SoftwareSerial blueToothSerial(RxD,TxD);
+ 
+void setup() 
+{ 
+    Serial.begin(9600);          //Serial port for debugging, Comment this line if not required  
+    //pinMode(RxD, INPUT);
+    //pinMode(TxD, OUTPUT);
+    setupBlueToothConnection();
+ 
+} 
+ 
+void loop() 
+{ 
+ 
+  if(Serial1.read() == 'a')
+  {
+    Serial1.println("You are connected to Bluetooth Bee");
+    //You can write you BT communication logic here
+  }
+} 
+ 
+void setupBlueToothConnection()
+{
+    Serial.print("Setting up Bluetooth link");       //For debugging, Comment this line if not required    
+    Serial1.begin(56700); //Set BluetoothBee BaudRate to default baud rate 38400
+    delay(1000);
+    sendBlueToothCommand("\r\n+STWMOD=0\r\n");
+    sendBlueToothCommand("\r\n+STNA=SeeedBtB\r\n");
+    sendBlueToothCommand("\r\n+STAUTO=0\r\n");
+    sendBlueToothCommand("\r\n+STOAUT=1\r\n");
+    sendBlueToothCommand("\r\n+STPIN=0000\r\n");
+    delay(2000); // This delay is required.
+    Serial1.print("\r\n+INQ=1\r\n");
+    delay(2000); // This delay is required.
+    Serial.print("Setup complete");
+ 
+}
+ 
+void sendBlueToothCommand(char command[])
+{
+    char a;
+    Serial1.print(command);
+    Serial.print(command);                          //For debugging, Comment this line if not required    
+    delay(3000);
+ 
+    while(Serial1.available())              //For debugging, Comment this line if not required  
+    {                                               //For debugging, Comment this line if not required   
+       Serial.print(char(Serial1.read()));  //For debugging, Comment this line if not required  
+    }                                               //For debugging, Comment this line if not required   
+}
+
+
+//IR
+int tot = 0;                  // the running total
+void setup()
+ {
+ Serial.begin(9600);
+ }
+ 
+float read_ir(byte pin) {
+    int temptot;
+    temptot = analogRead(pin);
+    if (temptot < 3)
+        return -1; // invalid value
+
+    return (6787.0 /((float)temptot - 3.0)) - 4.0;
+}
+void loop()
+ {
+tot = read_ir(3);  // Assign the value of function "read_ir" (passing the 
+                   // variable 2 is used to tell the function what pin the 
+                   // IR signal is connected to) to variable "tot".
+Serial.println(tot); // print the tot variable to the serial connection
+ delay(500);       //delay 1/4 seconds.
+ }
+ 
+ //motor
+ #include <Servo.h> 
+
+Servo myservo;
+Servo myservo2;
+
+void setup() 
+{ 
+  myservo.attach(4);
+  myservo2.attach(7);
+  //myservo.writeMicroseconds(1500);
+  //myservo2.writeMicroseconds(1500);
+  myservo.write(90);  // virage 90 tout droit 45 virage droite g  gauche 135
+ myservo2.write(90);  // speed 45 marche arrière 90 pause 135 fond   avant  set servo to mid-point 
+
+} 
+
+void loop() {}
+
+
+
+//GPS
+#include <Servo.h> 
+#include <Wire.h>
+
+#define GPM 0x68       
+
+byte Address;                                         // Global variable
+byte Data;                                            // Global variable
+Servo myservo;
+Servo myservo2;
+
+int HMC6352Address = 0x42;
+// This is calculated in the setup() function
+int slaveAddress;
+int ledPin = 13;
+boolean ledState = false;
+byte headingData[2];
+int i, headingValue;
+
+void setup()
+{
+ /* slaveAddress = HMC6352Address >> 1; 
+  Wire.begin();                                       // Start I2C comms
+  Serial.begin(9600);                                 // Start PC serial port @ 9600 baud
+  delay(100);
+  Serial.println("Application started...awaiting GPS data..");
+
+  delay(3000);                                        // Wait 3 seconds for DS-GPM.S to initialise
+
+  get_infos();
+*/
+testmotor();
+}
+
+void loop(){
+
+  //get_infos();
+  /*Wire.beginTransmission(slaveAddress);
+  Wire.write("A");              // The "Get Data" command
+  Wire.endTransmission();
+  delay(10);                   // The HMC6352 needs at least a 70us (microsecond) delay
+  // after this command.  Using 10ms just makes it safe
+  // Read the 2 heading bytes, MSB first
+  // The resulting 16bit word is the compass heading in 10th's of a degree
+  // For example: a heading of 1345 would be 134.5 degrees
+  Wire.requestFrom(slaveAddress, 2);        // Request the 2 byte heading (MSB comes first)
+  i = 0;
+  while(Wire.available() && i < 2)
+  { 
+    headingData[i] = Wire.read();
+    i++;
+  }
+  headingValue = headingData[0]*256 + headingData[1];  // Put the MSB and LSB together
+  Serial.print("Current heading: ");
+  Serial.print(int (headingValue / 10));     // The whole number part of the heading
+  Serial.print(".");
+  Serial.print(int (headingValue % 10));     // The fractional part of the heading
+  Serial.println(" degrees");
+  delay(500);*/
+}
+
+void get_infos(){
+  Serial.print("Time: ");
+  Address = 0;                                        // Point to Hours register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(":");
+  Address = 2;                                        // Point to Minutes register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(":");
+  Address = 4;                                        // Point to Seconds register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.println(Data, DEC);                          // and print to PC
+
+    Serial.print("Date: ");
+  Address = 6;                                        // Point to Day register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print("/");
+  Address = 8;                                        // Point to Month register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print("/");
+  Address = 10;                                       // Point to Year 1 register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 12;                                       // Point to Year 2 register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.println(Data, DEC);                          // and print to PC
+  delay(1000);                                        // Wait a second
+
+  Serial.print("Speed: ");
+  Address = 52;                                       // Point to Speed 1 register
+  Data = GetDouble();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 54;                                       // Point to Speed 2 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(".");
+  Address = 55;                                       // Point to Speed 3 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.println(Data, DEC);                          // and print to PC
+
+    delay(3000);                                        // Wait 3 seconds
+
+  Serial.print("Latitude: ");
+  Address = 14;                                       // Point to Latitude 1 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 15;                                       // Point to Latitude 2 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(" ");
+  Address = 16;                                       // Point to Latitude 3 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 17;                                       // Point to Latitude 4 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(".");
+  Address = 18;                                       // Point to Latitude 5 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 19;                                       // Point to Latitude 6 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 20;                                       // Point to Latitude 7 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 21;                                       // Point to Latitude 8 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 22;                                       // Point to Latitude character register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.write(Data);                         // and print to PC
+
+  Serial.print("Longitude: ");
+  Address = 23;                                       // Point to Longitude 1 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 24;                                       // Point to Longitude 2 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 25;                                       // Point to Longitude 3 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(" ");
+  Address = 26;                                       // Point to Longitude 4 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 27;                                       // Point to Longitude 5 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Serial.print(".");
+  Address = 28;                                       // Point to Longitude 6 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 29;                                       // Point to Longitude 7 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 30;                                       // Point to Longitude 8 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 31;                                       // Point to Longitude 9 register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.print(Data, DEC);                            // and print to PC
+  Address = 32;                                       // Point to Longitude character register
+  Data = GetSingle();                                 // Read registers from GPM
+  Serial.write(Data);                         // and print to PC
+
+  delay(3000);                                        // Wait 3 seconds
+
+  Serial.println("");
+}
+
+int GetDouble(){                      // Get double register value from GPM
+
+  int Value = 0; 
+  byte H_Byte = 0;
+  byte L_Byte = 0;
+
+  Wire.beginTransmission(GPM);
+  Wire.write(Address);                      // Send register start address
+  Wire.endTransmission();
+
+  Wire.requestFrom(GPM, 2);                  // Request double register
+  while(Wire.available() < 2);                  // Wait for double byte
+  H_Byte = Wire.read();                            // Store one
+  L_Byte = Wire.read();                            // Store two
+
+  Value = (H_Byte * 10) + L_Byte;                     // Adjust for one byte
+
+    return(Value);                              
+}
+
+
+int GetSingle(){                      // Get single register value from GPM
+
+  int Value = 0; 
+
+  Wire.beginTransmission(GPM);
+  Wire.write(Address);                      // Send register start address
+  Wire.endTransmission();
+
+  Wire.requestFrom(GPM, 1);                  // Request register
+  while(Wire.available() < 1);                  // Wait for single byte
+  Value = Wire.read();                             // and store
+
+    return(Value);                              
+}
+
+void testmotor(){
+
+    myservo.attach(11);
+  myservo2.attach(12);
+  //myservo.writeMicroseconds(1500);
+  //myservo2.writeMicroseconds(1500);
+  myservo.write(90);  // virage 90 tout droit 45 virage droite g  gauche 135
+  myservo2.write(100);  // speed 45 marche arrière 90 pause 135 fond   avant  set servo to mid-point 
+
+  
+  
+}
+
+float read_ir(byte pin) {
+    int temptot;
+    temptot = analogRead(pin);
+    if (temptot < 3)
+        return -1; // invalid value
+
+    return (6787.0 /((float)temptot - 3.0)) - 4.0;
+}
